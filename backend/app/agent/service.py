@@ -36,7 +36,7 @@ from .. import models
 # ---------------------------------------------------------------------------
 # LLM
 # ---------------------------------------------------------------------------
-primary_llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash") # Keeping the model consistent or updating to a stable one if needed
+primary_llm = ChatGoogleGenerativeAI(model="gemini-3.8-flash")# Keeping the model consistent or updating to a stable one if needed
 fallback_llm = ChatGroq(model="llama-3.3-70b-versatile")
 
 # Configure LLM with Fallback
