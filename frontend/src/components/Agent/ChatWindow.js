@@ -12,11 +12,18 @@ const ChatWindow = ({ onClose }) => {
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef(null);
 
-    const getSessionId = () => {
-        let sid = localStorage.getItem('agent_session');
-        if (!sid) { sid = Math.random().toString(36).substring(7); localStorage.setItem('agent_session', sid); }
-        return sid;
-    };
+const getSessionId = () => {
+    const sessionKey = `agent_session_${user.email}`;
+
+    let sid = localStorage.getItem(sessionKey);
+
+    if (!sid) {
+        sid = Math.random().toString(36).substring(7);
+        localStorage.setItem(sessionKey, sid);
+    }
+
+    return sid;
+};
     const sessionId = getSessionId();
 
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -43,24 +50,52 @@ const ChatWindow = ({ onClose }) => {
         fetchHistory();
     }, [sessionId]);
 
-    const handleSend = async (e) => {
-        e?.preventDefault();
-        if (!inputText.trim()) return;
-        const text = inputText;
-        setInputText('');
-        setMessages(prev => [...prev, { role: 'user', content: text }]);
-        setIsLoading(true);
-        try {
-            const token = localStorage.getItem('token');
-            const res = await agentAPI.sendMessage(text, sessionId, token);
-            setMessages(prev => [...prev, { role: 'assistant', content: res.response }]);
-            await syncAgentCart();
-        } catch {
-            setMessages(prev => [...prev, { role: 'system', content: 'Something went wrong. Please try again.' }]);
-        } finally {
-            setIsLoading(false);
+   const handleSend = async (e) => {
+    e?.preventDefault();
+    if (!inputText.trim()) return;
+
+    const text = inputText;
+    setInputText('');
+    setMessages(prev => [...prev, { role: 'user', content: text }]);
+    setIsLoading(true);
+
+    try {
+        const token = localStorage.getItem('token');
+        const res = await agentAPI.sendMessage(text, sessionId, token);
+
+        let responseText = res.response;
+
+        if (typeof responseText === 'string') {
+            const start = responseText.indexOf("'text': '");
+            const end = responseText.indexOf("', 'extras':");
+
+            if (start !== -1 && end !== -1) {
+                responseText = responseText.substring(start + 9, end);
+            }
+
+            responseText = responseText
+                .replace(/\\n/g, '\n')
+                .replace(/\\'/g, "'")
+                .replace(/\\"/g, '"')
+                .replace(/\\\\/g, '\\');
         }
-    };
+
+        setMessages(prev => [
+            ...prev,
+            { role: 'assistant', content: responseText }
+        ]);
+
+        await syncAgentCart();
+
+    } catch {
+        setMessages(prev => [
+            ...prev,
+            { role: 'system', content: 'Something went wrong. Please try again.' }
+        ]);
+    } finally {
+        setIsLoading(false);
+    }
+};
 
     const hints = ['Search headphones', 'Show my cart', 'Best laptops under $1000'];
 

@@ -30,8 +30,8 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         // Clear any leftover session from a previous user
-        localStorage.removeItem('agent_session');
-        localStorage.removeItem('cart');
+        // localStorage.removeItem('agent_session');
+        // localStorage.removeItem('cart');
         const res = await api.post('/auth/login', { email, password });
         localStorage.setItem('token', res.data.access_token);
         const decoded = jwtDecode(res.data.access_token);
@@ -47,10 +47,14 @@ export const AuthProvider = ({ children }) => {
 
     const logout = () => {
         localStorage.removeItem('token');
-        localStorage.removeItem('agent_session'); // fresh session for next login
-        localStorage.removeItem('cart');           // clear cart on logout
-        setUser(null);
-    };
+        // localStorage.removeItem('agent_session');
+        // localStorage.removeItem('cart');
+
+    // Notify CartContext that the user logged out
+    window.dispatchEvent(new Event('auth:logout'));
+
+    setUser(null);
+};
 
 
     return (

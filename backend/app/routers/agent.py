@@ -11,6 +11,7 @@ router = APIRouter(
     tags=["agent"]
 )
 
+
 @router.post("/chat", response_model=schemas.AgentChatResponse)
 async def chat_with_agent(
     request: schemas.AgentChatRequest,
@@ -18,14 +19,27 @@ async def chat_with_agent(
     db: AsyncSession = Depends(get_db)
 ):
     # Ensure session exists or create it
-    result = await db.execute(select(models.AgentSession).filter(models.AgentSession.id == request.session_id))
+    result = await db.execute(
+        select(models.AgentSession).filter(
+            models.AgentSession.id == request.session_id
+        )
+    )
     session = result.scalars().first()
-    
-    if not session:
-        session = models.AgentSession(id=request.session_id, user_id=current_user.id)
+
+    if session:
+        if session.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Session does not belong to current user"
+            )
+    else:
+        session = models.AgentSession(
+            id=request.session_id,
+            user_id=current_user.id
+        )
         db.add(session)
         await db.commit()
-    
+
     # Run Agent
     try:
         response_text = await run_agent_turn(
@@ -38,11 +52,12 @@ async def chat_with_agent(
         # Log error
         print(f"Agent Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-        
+
     return schemas.AgentChatResponse(
         response=str(response_text),
         session_id=request.session_id
     )
+
 
 @router.get("/history/{session_id}")
 async def get_history(
@@ -60,6 +75,7 @@ async def get_history(
         )
     )
     session = result.scalars().first()
+
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
@@ -71,6 +87,7 @@ async def get_history(
     rows = result.scalars().all()
 
     clean = []
+
     for row in rows:
         # Skip intermediate tool-result rows — frontend never displays them
         if row.role == "tool":
@@ -104,19 +121,19 @@ async def get_agent_cart(
     db: AsyncSession = Depends(get_db)
 ):
     import json as _json
-    # No user_id filter — consistent with the /chat endpoint which also only
-    # matches by session_id. The session_id is a random string so it is
-    # effectively private already.
+
     result = await db.execute(
         select(models.AgentSession).filter(
-            models.AgentSession.id == session_id
+            models.AgentSession.id == session_id,
+            models.AgentSession.user_id == current_user.id
         )
     )
     session = result.scalars().first()
+
     if not session or not session.cart_state:
         return []
+
     try:
         return _json.loads(session.cart_state)
     except Exception:
         return []
-

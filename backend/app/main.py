@@ -5,8 +5,11 @@ from .database import engine, Base
 
 app = FastAPI(title="Ecommerce API")
 
-# CORS
-origins = ["*"]
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://e-commerce-single-agent.onrender.com",
+]
 
 app.add_middleware(
     CORSMiddleware,

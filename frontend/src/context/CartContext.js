@@ -1,21 +1,42 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 
 const CartContext = createContext(null);
 
 export const CartProvider = ({ children }) => {
     const [cart, setCart] = useState([]);
+    const { user } = useAuth();
 
-    useEffect(() => {
+useEffect(() => {
+    if (user) {
         const storedCart = localStorage.getItem('cart');
+
         if (storedCart) {
             setCart(JSON.parse(storedCart));
+        } else {
+            setCart([]);
         }
-    }, []);
+    }
+}, [user]);
 
-    useEffect(() => {
+// Clear cart state immediately when user logs out
+useEffect(() => {
+    const handleLogout = () => {
+        setCart([]);
+    };
+
+    window.addEventListener('auth:logout', handleLogout);
+
+    return () => {
+        window.removeEventListener('auth:logout', handleLogout);
+    };
+}, []);
+ 
+useEffect(() => {
+    if (localStorage.getItem('token')) {
         localStorage.setItem('cart', JSON.stringify(cart));
-    }, [cart]);
-
+    }
+}, [cart]);
     const addToCart = (product) => {
         setCart(prev => {
             const existing = prev.find(item => item.id === product.id);
